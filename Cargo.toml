@@ -1,0 +1,22 @@
+[package]
+name = "qcat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytes = "1.6.1"
+clap = { version = "4.5.7", features = ["derive"] }
+ed25519-dalek = { version = "2.1.1", features = ["pkcs8"] }
+env_logger = "0.11.5"
+pbkdf2 = { version = "0.12.2", features = ["hmac"] }
+rand = "0.8.5"
+rcgen = "0.13.1"
+rustls-pemfile = "2.1.2"
+rustls-webpki = "0.102.5"
+s2n-quic = { version = "1.44.0", features = ["provider-tls-rustls"] }
+s2n-quic-rustls = "0.44.0"
+serde = "1.0.203"
+sha2 = "0.10.8"
+subtle = "2.6.1"
+thiserror = "1.0.61"
+tokio = { version = "1.38.0", features = ["io-std", "io-util", "macros", "rt-multi-thread", "sync"] }
