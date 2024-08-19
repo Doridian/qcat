@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // need to get password here
         eprintln!("password: {:?}", crypto.password());
 
-        let private_key_der = PrivateKeyDer::Pkcs8(*crypto.private_key());
+        let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
         let config = QcatCryptoConfig::new(
             crypto.certificate(),
             // TODO clean up
@@ -50,10 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let crypto = CryptoMaterial::generate_from_password(&args.password)?;
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
-        let config = QcatCryptoConfig::new(
-            crypto.certificate(),
-            PrivateKeyDer::Pkcs8(crypto.private_key().clone_key()),
-        );
+        let config = QcatCryptoConfig::new(crypto.certificate(), &private_key_der);
         let mut client = core::QcatClient::new(config)?;
 
         let mut stdin = tokio::io::stdin();
