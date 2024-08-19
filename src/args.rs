@@ -15,6 +15,6 @@ pub struct Args {
         help = "Port to utilize. If in server mode, this is the port to listen on. If in client mode, this is the port to connect to."
     )]
     pub port: u16,
-    #[arg(help = "Password to use")]
+    #[arg(short, long, help = "Password to use")]
     pub password: String,
 }

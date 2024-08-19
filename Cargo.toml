@@ -9,7 +9,7 @@ clap = { version = "4.5.7", features = ["derive"] }
 ed25519-dalek = { version = "2.1.1", features = ["pkcs8"] }
 env_logger = "0.11.5"
 pbkdf2 = { version = "0.12.2", features = ["hmac"] }
-rand = "0.8.5"
+rand = { version = "0.8.5", features = ["getrandom"] }
 rcgen = "0.13.1"
 rustls-pemfile = "2.1.2"
 rustls-webpki = "0.102.5"

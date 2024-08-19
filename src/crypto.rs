@@ -1,5 +1,6 @@
 use ed25519_dalek::{pkcs8::EncodePrivateKey, SigningKey};
 use pbkdf2::pbkdf2_hmac_array;
+use rand::{rngs::OsRng, RngCore};
 use rcgen::{CertificateParams, KeyPair, PKCS_ED25519};
 use s2n_quic::provider::tls::rustls::rustls::{
     client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
@@ -21,6 +22,10 @@ use webpki::{
 };
 
 const QCAT_ALPN: &[u8; 4] = b"qcat";
+
+const PASSWORD_WORD_COUNT: u8 = 3;
+const PASSWORD_WORD_DELIM: char = '-';
+
 static SUPPORTED_TLS_VERSIONS: &[&SupportedProtocolVersion] = &[&TLS13];
 
 /// Our custom ALPN protocol. Not really a protocol per se as the client is just sending raw bytes
@@ -339,8 +344,22 @@ impl CryptoMaterial {
 
     /// Generate a password to be used in our kdf for deriving private keys
     fn generate_password() -> QcatPassword {
-        // TODO: actually generate a password
-        QcatPassword(String::from("asdf"))
+        // pw file taken from https://github.com/dwyl/english-words
+        let passwords: Vec<&str> = include_str!("words_alpha.txt").split('\n').collect();
+        let passwords_len = passwords.len();
+        let mut generated_password = String::new();
+
+        (0..PASSWORD_WORD_COUNT).for_each(|i| {
+            let offset = OsRng.next_u64() as usize % passwords_len;
+            generated_password.push_str(passwords[offset]);
+
+            // push our delimiter unless we are on the last word
+            if i != PASSWORD_WORD_COUNT - 1 {
+                generated_password.push(PASSWORD_WORD_DELIM);
+            }
+        });
+
+        QcatPassword(generated_password)
     }
 
     /// Derive a private key from our generated password
