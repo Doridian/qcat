@@ -2,6 +2,7 @@ use clap::Parser;
 use qcat::{
     args, core,
     crypto::{CryptoMaterial, QcatCryptoConfig},
+    utils::receive_password_input,
 };
 use std::{
     error::Error,
@@ -14,7 +15,6 @@ use webpki::types::PrivateKeyDer;
 
 // TODO:
 // - add support for reading/writing from files rather than just stdin/stdout
-// - finish crypto stuff
 // - add logging
 // - fix names - remove qcat from a bunch of stuff since it's repetitive if its already in this crate
 
@@ -46,14 +46,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         server.run(&mut stdout_arc).await?;
     } else {
-        // needs to accept password as arg
-        let crypto = CryptoMaterial::generate_from_password(&args.password)?;
+        let mut stdin = tokio::io::stdin();
+
+        let password = receive_password_input(&mut stdin).await?;
+        let crypto = CryptoMaterial::generate_from_password(password)?;
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
         let config = QcatCryptoConfig::new(crypto.certificate(), &private_key_der);
         let mut client = core::QcatClient::new(config)?;
-
-        let mut stdin = tokio::io::stdin();
 
         client.run(socket_addr, &mut stdin).await?;
     }
