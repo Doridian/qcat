@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, str::FromStr};
 
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 
@@ -16,5 +16,5 @@ pub async fn receive_password_input<T: AsyncReadExt + Unpin>(
     // TODO: clean up this ownership?
     let received_password = received_password.trim();
 
-    Ok(QcatPassword::new(received_password.to_owned()))
+    QcatPassword::from_str(received_password)
 }

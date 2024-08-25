@@ -1,5 +1,6 @@
+use argon2::Argon2;
+use core::fmt;
 use ed25519_dalek::{pkcs8::EncodePrivateKey, SigningKey};
-use pbkdf2::pbkdf2_hmac_array;
 use rand::{rngs::OsRng, RngCore};
 use rcgen::{CertificateParams, KeyPair, PKCS_ED25519};
 use s2n_quic::provider::tls::rustls::rustls::{
@@ -10,8 +11,7 @@ use s2n_quic::provider::tls::rustls::rustls::{
     PeerIncompatible, PeerMisbehaved, ServerConfig, SignatureScheme,
 };
 use s2n_quic_rustls::rustls::{crypto::aws_lc_rs, version::TLS13, SupportedProtocolVersion};
-use sha2::Sha256;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 use subtle::ConstantTimeEq;
 use webpki::{
     types::{
@@ -23,8 +23,10 @@ use webpki::{
 
 const QCAT_ALPN: &[u8; 4] = b"qcat";
 
-const PASSWORD_WORD_COUNT: u8 = 3;
+const PASSWORD_WORD_COUNT: u8 = 4;
 const PASSWORD_WORD_DELIM: char = '-';
+
+const DERIVED_KEY_SIZE: usize = 32;
 
 static SUPPORTED_TLS_VERSIONS: &[&SupportedProtocolVersion] = &[&TLS13];
 
@@ -38,18 +40,48 @@ impl QcatAlpnProtocol {
     }
 }
 
-/// Newtype for a password String we generate
+/// Newtype for a password/salt Strings we generate
 #[derive(Debug)]
-pub struct QcatPassword(String);
+pub struct QcatPassword {
+    salt: String,
+    password: String,
+}
 
 impl QcatPassword {
     /// Create QcatPassword from a String. We take ownership of a String rather than using &str to hopefully enforce
     /// using the newtype
-    pub fn new(password: String) -> Self {
-        Self(password)
+    pub fn new(salt: String, password: String) -> Self {
+        Self { salt, password }
     }
-    fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
+
+    fn password_as_bytes(&self) -> &[u8] {
+        self.password.as_bytes()
+    }
+
+    fn salt_as_bytes(&self) -> &[u8] {
+        self.salt.as_bytes()
+    }
+}
+
+impl FromStr for QcatPassword {
+    type Err = Box<dyn std::error::Error>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(split) = s.split_once('-') {
+            Ok(Self {
+                salt: split.0.to_owned(),
+                password: split.1.to_owned(),
+            })
+        } else {
+            // TODO: make an actual error
+            panic!("wrong password format")
+        }
+    }
+}
+
+impl fmt::Display for QcatPassword {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}-{}", self.salt, self.password)
     }
 }
 
@@ -347,34 +379,43 @@ impl CryptoMaterial {
     /// Generate a password to be used in our kdf for deriving private keys
     fn generate_password() -> QcatPassword {
         // pw file taken from https://github.com/dwyl/english-words
-        let passwords: Vec<&str> = include_str!("words_alpha.txt").split('\n').collect();
-        let passwords_len = passwords.len();
-        let mut generated_password = String::new();
+        let words: Vec<&str> = include_str!("words_alpha.txt").split('\n').collect();
+        let words_len = words.len();
+        let mut salt = String::new();
+        let mut password = String::new();
 
         (0..PASSWORD_WORD_COUNT).for_each(|i| {
-            let offset = OsRng.next_u64() as usize % passwords_len;
-            generated_password.push_str(passwords[offset]);
+            let offset = OsRng.next_u64() as usize % words_len;
 
-            // push our delimiter unless we are on the last word
-            if i != PASSWORD_WORD_COUNT - 1 {
-                generated_password.push(PASSWORD_WORD_DELIM);
+            // first word will be used as our salt
+            if i == 0 {
+                salt.push_str(words[offset]);
+            // everything else is part of the password
+            } else {
+                password.push_str(words[offset]);
+
+                // push our delimiter unless we are on the last word
+                if i != PASSWORD_WORD_COUNT - 1 {
+                    password.push(PASSWORD_WORD_DELIM);
+                }
             }
         });
 
-        QcatPassword(generated_password)
+        QcatPassword { salt, password }
     }
 
     /// Derive a private key from our generated password
     fn derive_private_key(
         password: &QcatPassword,
     ) -> Result<PrivatePkcs8KeyDer<'static>, Box<dyn std::error::Error>> {
-        // TODO: lifetimes?
-        let password_bytes = password.as_bytes();
-        // TODO: move 32 to const? size of ed25519 key
-        // also move rounds to const
-        // https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
-        let derived_key_bytes = pbkdf2_hmac_array::<Sha256, 32>(password_bytes, &[], 600_000);
-        let pkcs8_der_key = SigningKey::from_bytes(&derived_key_bytes).to_pkcs8_der()?;
+        let mut derived_key_material = [0u8; DERIVED_KEY_SIZE];
+        Argon2::default().hash_password_into(
+            password.password_as_bytes(),
+            password.salt_as_bytes(),
+            &mut derived_key_material,
+        )?;
+
+        let pkcs8_der_key = SigningKey::from_bytes(&derived_key_material).to_pkcs8_der()?;
 
         Ok(PrivatePkcs8KeyDer::from(pkcs8_der_key.as_bytes()).clone_key())
     }
