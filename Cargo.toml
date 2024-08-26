@@ -12,6 +12,7 @@ env_logger = "0.11.5"
 pbkdf2 = { version = "0.12.2", features = ["hmac"] }
 rand = { version = "0.8.5", features = ["getrandom"] }
 rcgen = "0.13.1"
+rpassword = "7.3.1"
 rustls-pemfile = "2.1.2"
 rustls-webpki = "0.102.5"
 s2n-quic = { version = "1.44.0", features = ["provider-tls-rustls"] }

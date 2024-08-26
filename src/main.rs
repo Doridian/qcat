@@ -30,14 +30,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if args.listen {
         let crypto = CryptoMaterial::generate()?;
         // need to get password here
-        eprintln!("password: {:?}", crypto.password());
+        eprintln!("Generated salt + password: \"{}\"", crypto.password());
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
-        let config = QcatCryptoConfig::new(
-            crypto.certificate(),
-            // TODO clean up
-            &private_key_der,
-        );
+        let config = QcatCryptoConfig::new(crypto.certificate(), &private_key_der);
         let mut server = core::QcatServer::new(socket_addr, config)?;
 
         // we spawn a new tokio task for each connection, so wrap stdout in arc + mutex
@@ -48,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     } else {
         let mut stdin = tokio::io::stdin();
 
-        let password = receive_password_input(&mut stdin).await?;
+        let password = receive_password_input().await?;
         let crypto = CryptoMaterial::generate_from_password(password)?;
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());

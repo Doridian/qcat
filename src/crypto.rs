@@ -379,6 +379,7 @@ impl CryptoMaterial {
     /// Generate a password to be used in our kdf for deriving private keys
     fn generate_password() -> SaltedPassword {
         // pw file taken from https://github.com/dwyl/english-words
+        // TODO: maybe gzip this to decrease binary size
         let words: Vec<&str> = include_str!("words_alpha.txt").split('\n').collect();
         let words_len = words.len();
         let mut salt = String::new();
