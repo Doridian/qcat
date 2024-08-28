@@ -1,4 +1,5 @@
 use clap::Parser;
+use log::info;
 use qcat::{
     args, core,
     crypto::{CryptoMaterial, QcatCryptoConfig},
@@ -15,14 +16,22 @@ use webpki::types::PrivateKeyDer;
 
 // TODO:
 // - add support for reading/writing from files rather than just stdin/stdout
-// - add logging
-// - fix names - remove qcat from a bunch of stuff since it's repetitive if its already in this crate
+// - fix args to be more like nc
+// - find out minimal salt length (sometimes chosen words are too short)
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = args::Args::parse();
 
-    env_logger::init();
+    let log_level_filter = if args.debug {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+
+    env_logger::Builder::from_default_env()
+        .filter_level(log_level_filter)
+        .init();
 
     let ip_addr = IpAddr::from_str(&args.hostname)?;
     let socket_addr = SocketAddr::new(ip_addr, args.port);
@@ -30,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if args.listen {
         let crypto = CryptoMaterial::generate()?;
         // need to get password here
-        eprintln!("Generated salt + password: \"{}\"", crypto.password());
+        info!("Generated salt + password: \"{}\"", crypto.password());
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
         let config = QcatCryptoConfig::new(crypto.certificate(), &private_key_der);
