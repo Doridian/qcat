@@ -13,7 +13,9 @@ pub struct QcatServer {
 impl QcatServer {
     pub fn new(socket_addr: SocketAddr, config: QcatCryptoConfig) -> Result<Self, Box<dyn Error>> {
         let tls_config = config.build_server_config()?;
-        // TODO: see if we can configure the server with the builder rather than new
+        // new is deprecated, but there's no option in the alternative (builder) to configure some more advanced rustls
+        // features, like custom cert verifiers. Related issue for how s2n_quic exposes rustls features:
+        // https://github.com/aws/s2n-quic/issues/2178
         let rustls_server = s2n_quic_rustls::Server::new(tls_config);
         let server = Server::builder()
             .with_tls(rustls_server)?
@@ -53,7 +55,7 @@ impl QcatClient {
     pub fn new(config: QcatCryptoConfig) -> Result<Self, Box<dyn Error>> {
         // TODO: ipv6, cleanup
         let tls_config = config.build_client_config()?;
-        // TODO: see if we can configure the client with the builder rather than new
+        // see comment above in Server::new about using Client::new here
         let rustls_client = s2n_quic_rustls::Client::new(tls_config);
         let client = Client::builder()
             .with_tls(rustls_client)?
