@@ -17,7 +17,6 @@ use webpki::types::PrivateKeyDer;
 // TODO:
 // - add support for reading/writing from files rather than just stdin/stdout
 // - fix args to be more like nc
-// - find out minimal salt length (sometimes chosen words are too short)
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

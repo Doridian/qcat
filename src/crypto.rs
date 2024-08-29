@@ -1,4 +1,4 @@
-use argon2::Argon2;
+use argon2::{Argon2, RECOMMENDED_SALT_LEN};
 use core::fmt;
 use ed25519_dalek::{pkcs8::EncodePrivateKey, SigningKey};
 use rand::{rngs::OsRng, RngCore};
@@ -24,7 +24,7 @@ use webpki::{
 
 const QCAT_ALPN: &[u8; 4] = b"qcat";
 
-const PASSWORD_WORD_COUNT: u8 = 4;
+const PASSWORD_WORD_COUNT: u8 = 3;
 const PASSWORD_WORD_DELIM: char = '-';
 
 const DERIVED_KEY_SIZE: usize = 32;
@@ -378,27 +378,17 @@ impl CryptoMaterial {
 
     /// Generate a password to be used in our kdf for deriving private keys
     fn generate_password() -> SaltedPassword {
-        // pw file taken from https://github.com/dwyl/english-words
-        // TODO: maybe gzip this to decrease binary size
-        let words: Vec<&str> = include_str!("words_alpha.txt").split('\n').collect();
-        let words_len = words.len();
-        let mut salt = String::new();
+        let word_list = Wordlist::default();
+
+        let salt = word_list.get_salt().to_owned();
         let mut password = String::new();
 
         (0..PASSWORD_WORD_COUNT).for_each(|i| {
-            let offset = OsRng.next_u64() as usize % words_len;
+            password.push_str(word_list.get_word());
 
-            // first word will be used as our salt
-            if i == 0 {
-                salt.push_str(words[offset]);
-            // everything else is part of the password
-            } else {
-                password.push_str(words[offset]);
-
-                // push our delimiter unless we are on the last word
-                if i != PASSWORD_WORD_COUNT - 1 {
-                    password.push(PASSWORD_WORD_DELIM);
-                }
+            // push our delimiter unless we are on the last word
+            if i != PASSWORD_WORD_COUNT - 1 {
+                password.push(PASSWORD_WORD_DELIM);
             }
         });
 
@@ -431,5 +421,36 @@ impl CryptoMaterial {
             KeyPair::from_pkcs8_der_and_sign_algo(private_key_der, &PKCS_ED25519)?;
 
         Ok(cert_params.self_signed(&signing_keypair)?.der().clone())
+    }
+}
+
+#[derive(Debug)]
+struct Wordlist<'a> {
+    words: Vec<&'a str>,
+}
+
+impl<'a> Default for Wordlist<'a> {
+    fn default() -> Self {
+        // pw file taken from https://github.com/dwyl/english-words
+        // TODO: maybe gzip this to decrease binary size
+        let words: Vec<&str> = include_str!("words_alpha.txt").split('\n').collect();
+        Self { words }
+    }
+}
+
+impl<'a> Wordlist<'a> {
+    // TODO: maybe wrap these in newtypes
+    fn get_word(&self) -> &str {
+        let offset = OsRng.next_u64() as usize % self.words.len();
+        self.words[offset]
+    }
+
+    fn get_salt(&self) -> &str {
+        loop {
+            let possible_salt = self.get_word();
+            if possible_salt.as_bytes().len() >= RECOMMENDED_SALT_LEN {
+                return possible_salt;
+            }
+        }
     }
 }
