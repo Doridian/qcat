@@ -424,6 +424,7 @@ impl CryptoMaterial {
     }
 }
 
+/// Holds our hardcoded wordlist for generating salts/passphrases
 #[derive(Debug)]
 struct Wordlist<'a> {
     words: Vec<&'a str>,

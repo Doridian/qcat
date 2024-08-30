@@ -53,7 +53,6 @@ pub struct QcatClient {
 
 impl QcatClient {
     pub fn new(config: QcatCryptoConfig) -> Result<Self, Box<dyn Error>> {
-        // TODO: ipv6, cleanup
         let tls_config = config.build_client_config()?;
         // see comment above in Server::new about using Client::new here
         let rustls_client = s2n_quic_rustls::Client::new(tls_config);

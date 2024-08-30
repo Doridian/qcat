@@ -17,6 +17,10 @@ use webpki::types::PrivateKeyDer;
 // TODO:
 // - add support for reading/writing from files rather than just stdin/stdout
 // - fix args to be more like nc
+// - ipv6 support, try to resolve addresses rather than just using ip addrs from args (i.e. should be able to type "localhost")
+// - remove RSA support
+// - rename password as passphrase
+// - look at cert params and defaults
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -37,7 +41,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     if args.listen {
         let crypto = CryptoMaterial::generate()?;
-        // need to get password here
         info!("Generated salt + password: \"{}\"", crypto.password());
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
@@ -52,7 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     } else {
         let mut stdin = tokio::io::stdin();
 
-        let password = receive_password_input().await?;
+        let password = receive_password_input()?;
         let crypto = CryptoMaterial::generate_from_password(password)?;
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
