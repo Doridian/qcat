@@ -3,7 +3,7 @@ use log::info;
 use qcat::{
     args, core,
     crypto::{CryptoMaterial, QcatCryptoConfig},
-    utils::receive_password_input,
+    utils::receive_passphrase_input,
 };
 use std::{
     error::Error,
@@ -19,7 +19,6 @@ use webpki::types::PrivateKeyDer;
 // - fix args to be more like nc
 // - ipv6 support, try to resolve addresses rather than just using ip addrs from args (i.e. should be able to type "localhost")
 // - remove RSA support
-// - rename password as passphrase
 // - look at cert params and defaults
 
 #[tokio::main]
@@ -41,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     if args.listen {
         let crypto = CryptoMaterial::generate()?;
-        info!("Generated salt + password: \"{}\"", crypto.password());
+        info!("Generated salt + passphrase: \"{}\"", crypto.passphrase());
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
         let config = QcatCryptoConfig::new(crypto.certificate(), &private_key_der);
@@ -55,8 +54,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     } else {
         let mut stdin = tokio::io::stdin();
 
-        let password = receive_password_input()?;
-        let crypto = CryptoMaterial::generate_from_password(password)?;
+        let passphrase = receive_passphrase_input()?;
+        let crypto = CryptoMaterial::generate_from_passphrase(passphrase)?;
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
         let config = QcatCryptoConfig::new(crypto.certificate(), &private_key_der);
