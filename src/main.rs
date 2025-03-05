@@ -3,16 +3,17 @@ use log::info;
 use qcat::{
     args, core,
     crypto::{CryptoMaterial, QcatCryptoConfig},
-    utils::receive_passphrase_input,
 };
 use std::{
     error::Error,
     net::{IpAddr, SocketAddr},
-    str::FromStr,
     sync::Arc,
 };
+use std::env;
 use tokio::sync::Mutex;
 use webpki::types::PrivateKeyDer;
+use std::{self, str::FromStr};
+use qcat::crypto::SaltedPassphrase;
 
 // TODO:
 // - add support for reading/writing from files rather than just stdin/stdout
@@ -38,10 +39,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let ip_addr = IpAddr::from_str(&args.hostname)?;
     let socket_addr = SocketAddr::new(ip_addr, args.port);
 
-    if args.listen {
-        let crypto = CryptoMaterial::generate()?;
-        info!("Generated salt + passphrase: \"{}\"", crypto.passphrase());
 
+    let passphrase = SaltedPassphrase::from_str(env::var("PASS")?.as_str())?;
+    let crypto = CryptoMaterial::generate_from_passphrase(passphrase)?;
+    info!("Generated salt + passphrase: \"{}\"", crypto.passphrase());
+
+    if args.listen {
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
         let config = QcatCryptoConfig::new(crypto.certificate(), &private_key_der);
         let mut server = core::QcatServer::new(socket_addr, config)?;
@@ -53,9 +56,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         server.run(&mut stdout_arc).await?;
     } else {
         let mut stdin = tokio::io::stdin();
-
-        let passphrase = receive_passphrase_input()?;
-        let crypto = CryptoMaterial::generate_from_passphrase(passphrase)?;
 
         let private_key_der = PrivateKeyDer::Pkcs8(crypto.private_key().clone_key());
         let config = QcatCryptoConfig::new(crypto.certificate(), &private_key_der);
