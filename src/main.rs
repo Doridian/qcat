@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let socket_addr = SocketAddr::new(ip_addr, args.port);
 
 
-    let passphrase = SaltedPassphrase::from_str(env::var("PASS")?.as_str())?;
+    let passphrase = SaltedPassphrase::from_str(env::var("QUICPASS")?.as_str())?;
     let crypto = CryptoMaterial::generate_from_passphrase(passphrase)?;
     info!("Generated salt + passphrase: \"{}\"", crypto.passphrase());
 
