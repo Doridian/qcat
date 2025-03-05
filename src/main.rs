@@ -36,6 +36,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .filter_level(log_level_filter)
         .init();
 
+    if args.generate {
+        let crypto = CryptoMaterial::generate()?;
+        print!("{}\n", crypto.passphrase());
+        return Ok(());
+    }
+
     let ip_addr = IpAddr::from_str(&args.hostname)?;
     let socket_addr = SocketAddr::new(ip_addr, args.port);
 

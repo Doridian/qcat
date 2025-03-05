@@ -8,6 +8,8 @@ pub struct Args {
     pub listen: bool,
     #[arg(short, long)]
     pub debug: bool,
+    #[arg(short, long)]
+    pub generate: bool,
     // TODO: actually make this hostname, currently just parsing as ip addr
     #[arg(help = "Hostname to either connect to or listen on (i.e. localhost)")]
     pub hostname: String,
